@@ -1,16 +1,33 @@
 package uk.ac.ox.ctl.lti13.demo.controller;
 
-import com.nimbusds.jose.jwk.JWKSet;
+import static uk.ac.ox.ctl.lti13.demo.controller.lti13.Canvas13Extension.INSTRUCTURE;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.servlet.http.HttpServletRequest;
+
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
-import uk.ac.ox.ctl.lti13.demo.controller.lti13.*;
 
-import javax.servlet.http.HttpServletRequest;
-import java.util.*;
+import com.nimbusds.jose.jwk.JWKSet;
 
-import static uk.ac.ox.ctl.lti13.demo.controller.lti13.Canvas13Extension.INSTRUCTURE;
+import uk.ac.ox.ctl.lti13.demo.controller.lti13.Canvas13Extension;
+import uk.ac.ox.ctl.lti13.demo.controller.lti13.Canvas13ExtensionBuilder;
+import uk.ac.ox.ctl.lti13.demo.controller.lti13.Canvas13Placement;
+import uk.ac.ox.ctl.lti13.demo.controller.lti13.Canvas13PlacementBuilder;
+import uk.ac.ox.ctl.lti13.demo.controller.lti13.Canvas13Settings;
+import uk.ac.ox.ctl.lti13.demo.controller.lti13.Canvas13SettingsBuilder;
+import uk.ac.ox.ctl.lti13.demo.controller.lti13.Lti13Config;
+import uk.ac.ox.ctl.lti13.demo.controller.lti13.Lti13ConfigBuilder;
 
 @RestController
 public class Config13Controller {
@@ -29,6 +46,11 @@ public class Config13Controller {
     public Config13Controller(JWKSet jwkSet) {
         this.jwkSet = jwkSet;
     }
+    
+    @Value("${publicJwk}")
+    private String publicJwkString;
+    
+    private Object publicJwk;
 
     @GetMapping("/config.json")
     public Lti13Config getConfig(HttpServletRequest request) {
@@ -56,13 +78,21 @@ public class Config13Controller {
         Map<String, String> customFields = new HashMap<>();
         customFields.put("canvas_css_common", "$Canvas.css.common");
         customFields.put("com_instructure_brand_config_json_url", "$com.instructure.brandConfigJS.url");
+        
+        try {
+			JSONParser jsonParser = new JSONParser();
+			publicJwk = jsonParser.parse(publicJwkString);
+		} catch (ParseException e) {
+			e.printStackTrace();
+		}
+        
         return new Lti13ConfigBuilder()
                 .title(title)
                 .description(description)
                 .oidcInitiaionUrl(urlPrefix + "/lti/login_initiation/canvas")
                 .targetLinkUri(urlPrefix)
                 .extensions(extensions)
-                .publicJwk(jwkSet.getKeyByKeyId(jwtId).toPublicJWK().toJSONObject())
+                .publicJwk(publicJwk)
                 .customFields(customFields)
                 .createLti13Config();
     }
